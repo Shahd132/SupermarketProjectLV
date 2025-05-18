@@ -7,13 +7,13 @@ public class Product
     private int CategoryId;
     private int Quantity;
 
-    public Product(int id, String name, String category, double price, int quantity) 
+    public Product(int id, String name, String category, double price) 
     {
         this.ProductId = id;
         this.Name = name;
         this.Category = category;
         this.Price = price;
-        this.Quantity = quantity;
+        
     }
 
     public int getId() 

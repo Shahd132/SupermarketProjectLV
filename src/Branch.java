@@ -1,59 +1,47 @@
-public class Branch 
-{
-    private int BranchId;
-    private String Name;
-    private String Location;
-    private int AdminId;
+public class Branch {
+    private int branchId;
+    private String name;
+    private String phone;
+    private int adminId;
 
-    public Branch(int branchId, String name, String location, int AdminId) 
-    {
-        this.BranchId = branchId;
-        this.Name = name;
-        this.Location = location;
-        this.AdminId = AdminId;
+    public Branch(int branchId, String name, String phone, int adminId) {
+        this.branchId = branchId;
+        this.name = name;
+        this.phone = phone;
+        this.adminId = adminId;
     }
 
-    public void setManager(int adminId) 
-    {
-        this.AdminId = adminId;
+    public int getBranchId() {
+        return branchId;
     }
 
-    public void setBranchId(int branchId) 
-    {
-        this.BranchId = branchId;
+    public void setBranchId(int branchId) {
+        this.branchId = branchId;
     }
 
-    public void setName(String name) 
-    {
-        this.Name = name;
+    public String getName() {
+        return name;
     }
 
-    public void setLocation(String location) 
-    {
-        this.Location = location;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getLocation() 
-    {
-        return Location;
+    public String getPhone() {
+        return phone;
     }
 
-    public int getManager() 
-    {
-        return AdminId;
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
-    public int getBranchId() 
-    {
-        return BranchId;
+    public int getAdminId() {
+        return adminId;
     }
 
-    public String getName() 
-    {
-        return Name;
+    public void setAdminId(int adminId) {
+        this.adminId = adminId;
     }
-
-    
-
 }
+
 

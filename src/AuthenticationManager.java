@@ -127,4 +127,27 @@ public class AuthenticationManager
         }
         return "unknown"; 
     }
+    public Customer getCustomerByEmail(String email) {
+        String sql = "SELECT * FROM Customer WHERE CEmail = ?";
+        try (Connection conn = connect(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int id = rs.getInt("CID"); 
+                String name = rs.getString("CName");
+                String phoneNo = rs.getString("PhoneNo");
+                String address = rs.getString("CAddress");
+                String password = rs.getString("CPassword");
+                String registrationDate = rs.getString("RegistrationDate");
+                String discountVoucher = rs.getString("DiscountVoucher");
+
+                Customer customer = new Customer(name, email, phoneNo, address, password);
+                customer.setId(id);  // Set the ID here!
+                return customer;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }

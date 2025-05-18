@@ -70,7 +70,7 @@ public class ManageProductsPage extends JFrame {
         searchPanel.add(searchButton);
         this.add(searchPanel, BorderLayout.BEFORE_FIRST_LINE);
 
-        String[] columns = {"ID", "Name", "Category", "Price", "Quantity"};
+        String[] columns = {"ID", "Name", "Category", "Price"};
         tableModel = new DefaultTableModel(columns, 0);
         productTable = new JTable(tableModel);
         productTable.setRowHeight(28);
@@ -91,8 +91,8 @@ public class ManageProductsPage extends JFrame {
         JButton deleteButton = createStyledButton("Delete Product");
         JButton backButton = createBackButton("Back");
 
-        addButton.addActionListener(e -> {new ProductForm(this, null, productDAO); dispose(); });
-        editButton.addActionListener(e -> {dispose();});
+        addButton.addActionListener(e -> {new ProductForm(this, null, productDAO); });
+        editButton.addActionListener(e -> editSelectedProduct());
         deleteButton.addActionListener(e -> deleteSelectedProduct());
         backButton.addActionListener(e -> {new AdminDashboard(); dispose();});
 
@@ -156,9 +156,9 @@ public class ManageProductsPage extends JFrame {
         String name = (String) tableModel.getValueAt(row, 1);
         String category = (String) tableModel.getValueAt(row, 2);
         double price = (double) tableModel.getValueAt(row, 3);
-        int quantity = (int) tableModel.getValueAt(row, 4);
+        
 
-        Product product = new Product(id, name, category, price, quantity);
+        Product product = new Product(id, name, category, price);
         new ProductForm(this, product, productDAO);
     }
 

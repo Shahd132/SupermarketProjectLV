@@ -12,6 +12,7 @@ public class Customer
     public Customer() {}
     public Customer(String name, String email, String phoneNo, String address,String password) 
     {
+        // this.CustomerId=0;
         this.Name = name;
         this.Email = email;
         this.PhoneNo = phoneNo;
@@ -19,6 +20,10 @@ public class Customer
         this.RegistrationDate = java.time.LocalDate.now().toString(); 
         this.Password=password;
         this.DiscountVoucher = null; 
+    }
+     public void setPhone(String phone)
+    {
+        this.PhoneNo=phone;
     }
     public int getId()
     {
@@ -52,8 +57,13 @@ public class Customer
     {
         return Password;
     }
+
+
     
-    
+    public void setId(int id)
+    {
+        this.CustomerId=id;
+    }
     public void setName(String name)
     {
         this.Name=name;
@@ -70,9 +80,17 @@ public class Customer
     {
         this.Address=address;
     }
+    public void setDate(String date)
+    {
+        this.RegistrationDate=date;
+    }
     public void setDiscountVoucher(String discount)
     {
          this.DiscountVoucher=discount;
+    }
+    public void setphone(String phone)
+    {
+        this.PhoneNo=phone;
     }
 }
 

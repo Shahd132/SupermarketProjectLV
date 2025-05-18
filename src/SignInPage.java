@@ -132,9 +132,20 @@ public class SignInPage extends JFrame
             }
             else
             {
-                //go to dashboard
-                new AdminDashboard();
-                dispose();
+                
+                if(authManager.determineRole(email, password)=="admin")
+                {
+                    new AdminDashboard();
+                    dispose();
+                }
+                else
+                {
+                    Customer customer = authManager.getCustomerByEmail(email);
+                    new BranchSelector(customer);
+                    dispose();
+
+                }
+                
             }
            
         });

@@ -7,7 +7,7 @@ import java.sql.SQLException;
 
 public class ProductForm extends JDialog {
 
-    private JTextField nameField, categoryField, priceField, quantityField;
+    private JTextField nameField, categoryField, priceField;
     private JButton saveButton, cancelButton;
     private ManageProductsPage parent;
     private ProductDAO productDAO;
@@ -28,7 +28,6 @@ public class ProductForm extends JDialog {
         nameField = createStyledTextField("Enter product name");
         categoryField = createStyledTextField("Enter category");
         priceField = createStyledTextField("Enter price");
-        quantityField = createStyledTextField("Enter quantity");
 
         saveButton = createStyledButton(product == null ? "Add Product" : "Save Changes");
         cancelButton = createCancelButton("Cancel");
@@ -44,7 +43,7 @@ public class ProductForm extends JDialog {
         addCentered(nameField, gbc, 0);
         addCentered(categoryField, gbc, 1);
         addCentered(priceField, gbc, 2);
-        addCentered(quantityField, gbc, 3);
+        
         addCentered(saveButton, gbc, 4);
         addCentered(cancelButton, gbc, 5);
 
@@ -53,7 +52,7 @@ public class ProductForm extends JDialog {
             nameField.setText(product.getName());
             categoryField.setText(product.getCategoryName());
             priceField.setText(String.valueOf(product.getPrice()));
-            quantityField.setText(String.valueOf(product.getQuantity()));
+            
         }
 
         setVisible(true);
@@ -65,11 +64,11 @@ public class ProductForm extends JDialog {
         String name = nameField.getText().trim();
         String category = categoryField.getText().trim();
         double price;
-        int quantity;
+        
 
         try {
             price = Double.parseDouble(priceField.getText().trim());
-            quantity = Integer.parseInt(quantityField.getText().trim());
+            
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Invalid price or quantity format.");
             return;
@@ -77,13 +76,13 @@ public class ProductForm extends JDialog {
 
         try {
             if (productToEdit == null) {
-                Product newProduct = new Product(0, name, category, price, quantity);
+                Product newProduct = new Product(0, name, category, price);
                 productDAO.insertProduct(newProduct);
             } else {
                 productToEdit.setName(name);
                 productToEdit.setCategoryName(category);
                 productToEdit.setPrice(price);
-                productToEdit.setQuantity(quantity);
+                
                 productDAO.updateProduct(productToEdit);
             }
             parent.refreshProductTable();
@@ -101,7 +100,7 @@ public class ProductForm extends JDialog {
     field.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(34, 139, 34)));
     field.setBackground(new Color(245, 255, 245));
     field.setFont(new Font("Arial", Font.PLAIN, 16));
-    field.setPreferredSize(new Dimension(300, 40)); // width = 300, height = 40
+    field.setPreferredSize(new Dimension(300, 40)); 
     field.addFocusListener(new FocusAdapter() {
         public void focusGained(FocusEvent e) {
             if (field.getText().equals(placeholder)) {
