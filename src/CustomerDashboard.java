@@ -63,10 +63,12 @@ public class CustomerDashboard extends JFrame {
         buttonPanel.setBackground(new Color(245, 255, 245));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 20, 0));
 
-        // Create the main action buttons
-        JButton viewBtn = createDashboardButton("View Product", e -> onViewProduct());
+
+        JButton viewproductBtn = createDashboardButton("View Product", e -> onViewProduct());
         viewCartBtn = createDashboardButton("View Cart (0)", e -> showCart());
         JButton orderBtn = createDashboardButton("Place Order", e -> onPlaceOrder());
+
+
         // Create the back button with different styling
         JButton backBtn = new JButton("Back");
         backBtn.setFont(new Font("Arial", Font.BOLD, 18));
@@ -81,7 +83,7 @@ public class CustomerDashboard extends JFrame {
         });
 
         // Add all buttons to the panel
-       buttonPanel.add(viewBtn);
+        buttonPanel.add(viewproductBtn);
         buttonPanel.add(viewCartBtn);
         buttonPanel.add(orderBtn);
         buttonPanel.add(backBtn);
@@ -93,20 +95,6 @@ public class CustomerDashboard extends JFrame {
         setVisible(true);
 
         loadProductsForBranch();
-    }
-
-    private JButton createGreenButton(String text, ActionListener listener) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Arial", Font.BOLD, 18));
-        button.setBackground(new Color(0, 102, 0)); // Dark green
-        button.setForeground(Color.WHITE);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setContentAreaFilled(true);
-        button.setBorder(null);
-        button.setPreferredSize(new Dimension(200, 40));
-        button.addActionListener(listener);
-        return button;
     }
 
     private void addSearchPanel(JPanel parent) {
@@ -150,7 +138,7 @@ public class CustomerDashboard extends JFrame {
     }
 
     private void addProductTable(JPanel parent) {
-        String[] columnNames = {"ID", "Name", "Category", "Price", "Quantity"};
+        String[] columnNames = {"ID", "Name", "Category", "Price"};
         productTableModel = new DefaultTableModel(columnNames, 0) {
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -195,7 +183,7 @@ public class CustomerDashboard extends JFrame {
         productTableModel.setRowCount(0);
         for (Product p : products) {
             productTableModel.addRow(new Object[]{
-                    p.getId(), p.getName(), p.getCategoryName(), p.getPrice(), p.getQuantity()
+                    p.getId(), p.getName(), p.getCategoryName(), p.getPrice()
             });
         }
     }
@@ -213,6 +201,96 @@ public class CustomerDashboard extends JFrame {
         button.addActionListener(listener);
         return button;
     }
+
+    private void onViewProduct() {
+        try {
+            int selectedRow = productTable.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Please select a product to view.");
+                return;
+            }
+
+            // Get values safely with proper type conversion
+            int productId = Integer.parseInt(productTable.getValueAt(selectedRow, 0).toString());
+            String name = productTable.getValueAt(selectedRow, 1).toString();
+            String category = productTable.getValueAt(selectedRow, 2).toString();
+            double price = Double.parseDouble(productTable.getValueAt(selectedRow, 3).toString());
+
+            // Record view in database
+            int customerId = customer.getId();
+            incrementView(productId, customerId);
+
+            // Create product details panel (without quantity)
+            JPanel panel = new JPanel(new GridLayout(0, 1));
+            panel.add(new JLabel("Name: " + name));
+            panel.add(new JLabel("Category: " + category));
+            panel.add(new JLabel("Price: $" + price));
+
+            // Add to cart controls with default quantity (1-100)
+            JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
+            JButton addToCartBtn = new JButton("Add to Cart");
+            addToCartBtn.addActionListener(e -> {
+                int qty = (int) quantitySpinner.getValue();
+                cartItems.add(new OrderItem(productId, name, price, qty));
+                updateCartButton();
+                JOptionPane.showMessageDialog(this, "Added to cart!");
+            });
+
+            JPanel controlsPanel = new JPanel();
+            controlsPanel.add(new JLabel("Quantity:"));
+            controlsPanel.add(quantitySpinner);
+            controlsPanel.add(addToCartBtn);
+            panel.add(controlsPanel);
+
+            // Show product details
+            JOptionPane.showMessageDialog(this, panel, "Product Details", JOptionPane.PLAIN_MESSAGE);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error viewing product: " + e.getMessage());
+        }
+    }
+
+    private void onPlaceOrder() {
+        if (cartItems.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Your cart is empty. Please add products first.");
+            return;
+        }
+        showCart();
+    }
+
+    private void incrementView(int productId, int customerId) {
+        try (Connection conn = DriverManager.getConnection(
+                "jdbc:sqlserver://localhost:1433;databaseName=Supermarket;integratedSecurity=true;encrypt=true;trustServerCertificate=true")) {
+            String checkSql = "SELECT TIMES_VIEWED FROM VIEWS WHERE PRODUCTID = ? AND CID = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                checkStmt.setInt(1, productId);
+                checkStmt.setInt(2, customerId);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next()) {
+                    int timesViewed = rs.getInt("TIMES_VIEWED") + 1;
+                    String updateSql = "UPDATE VIEWS SET TIMES_VIEWED = ? WHERE PRODUCTID = ? AND CID = ?";
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                        updateStmt.setInt(1, timesViewed);
+                        updateStmt.setInt(2, productId);
+                        updateStmt.setInt(3, customerId);
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    String insertSql = "INSERT INTO VIEWS (PRODUCTID, CID, TIMES_VIEWED) VALUES (?, ?, 1)";
+                    try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                        insertStmt.setInt(1, productId);
+                        insertStmt.setInt(2, customerId);
+                        insertStmt.executeUpdate();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error recording view: " + e.getMessage());
+        }
+    }
+
 
     private void showCart() {
         if (cartItems.isEmpty()) {
@@ -458,7 +536,7 @@ public class CustomerDashboard extends JFrame {
     }
 
     private JTable loadProductTable() {
-        String[] columnNames = {"ID", "Name", "Category", "Price", "Quantity"};
+        String[] columnNames = {"ID", "Name", "Category", "Price"};
         Object[][] data = {};
 
         try {
@@ -470,7 +548,6 @@ public class CustomerDashboard extends JFrame {
                 data[i][1] = p.getName();
                 data[i][2] = p.getCategoryName();
                 data[i][3] = p.getPrice();
-                data[i][4] = p.getQuantity();
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Failed to load products: " + e.getMessage());
@@ -487,85 +564,6 @@ public class CustomerDashboard extends JFrame {
         return table;
     }
 
-     private void onViewProduct() {
-        int selectedRow = productTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a product to view.");
-            return;
-        }
-
-        int productId = (int) productTable.getValueAt(selectedRow, 0);
-        int customerId = customer.getId();
-        incrementView(productId, customerId);
-
-        String name = (String) productTable.getValueAt(selectedRow, 1);
-        String category = (String) productTable.getValueAt(selectedRow, 2);
-        double price = (double) productTable.getValueAt(selectedRow, 3);
-        int quantity = (int) productTable.getValueAt(selectedRow, 4);
-
-        JPanel panel = new JPanel(new GridLayout(0, 1));
-        panel.add(new JLabel("Name: " + name));
-        panel.add(new JLabel("Category: " + category));
-        panel.add(new JLabel("Price: $" + price));
-        panel.add(new JLabel("In Stock: " + quantity));
-
-        JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, quantity, 1));
-        JButton addToCartBtn = new JButton("Add to Cart");
-        addToCartBtn.addActionListener(e -> {
-            int qty = (int) quantitySpinner.getValue();
-            cartItems.add(new OrderItem(productId, name, price, qty));
-            updateCartButton();
-            JOptionPane.showMessageDialog(this, "Added to cart!");
-        });
-
-        JPanel controlsPanel = new JPanel();
-        controlsPanel.add(new JLabel("Quantity:"));
-        controlsPanel.add(quantitySpinner);
-        controlsPanel.add(addToCartBtn);
-        panel.add(controlsPanel);
-
-        JOptionPane.showMessageDialog(this, panel, "Product Details", JOptionPane.PLAIN_MESSAGE);
-    }
-
-    private void onPlaceOrder() {
-        if (cartItems.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Your cart is empty. Please add products first.");
-            return;
-        }
-        showCart();
-    }
-
-    private void incrementView(int productId, int customerId) {
-        try (Connection conn = DriverManager.getConnection(
-                "jdbc:sqlserver://localhost:1433;databaseName=Supermarket;integratedSecurity=true;encrypt=true;trustServerCertificate=true")) {
-            String checkSql = "SELECT TIMES_VIEWED FROM VIEWS WHERE PRODUCTID = ? AND CID = ?";
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setInt(1, productId);
-                checkStmt.setInt(2, customerId);
-                ResultSet rs = checkStmt.executeQuery();
-
-                if (rs.next()) {
-                    int timesViewed = rs.getInt("TIMES_VIEWED") + 1;
-                    String updateSql = "UPDATE VIEWS SET TIMES_VIEWED = ? WHERE PRODUCTID = ? AND CID = ?";
-                    try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                        updateStmt.setInt(1, timesViewed);
-                        updateStmt.setInt(2, productId);
-                        updateStmt.setInt(3, customerId);
-                        updateStmt.executeUpdate();
-                    }
-                } else {
-                    String insertSql = "INSERT INTO VIEWS (PRODUCTID, CID, TIMES_VIEWED) VALUES (?, ?, 1)";
-                    try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
-                        insertStmt.setInt(1, productId);
-                        insertStmt.setInt(2, customerId);
-                        insertStmt.executeUpdate();
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error recording view: " + e.getMessage());
-        }
-    }
 
 
     private void openProfileEditor() {
