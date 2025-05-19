@@ -290,162 +290,143 @@ public class CustomerDashboard extends JFrame {
             JOptionPane.showMessageDialog(this, "Error recording view: " + e.getMessage());
         }
     }
+private void showCheckoutDialog(double finalTotal, double originalTotal, double discountAmount) {
+    // تنسيق عرض البيانات في نافذة جديدة
+    JDialog checkoutDialog = new JDialog(this, "Checkout Summary", true);
+    checkoutDialog.setSize(400, 200);
+    checkoutDialog.setLayout(new GridLayout(4, 1));
+    checkoutDialog.setLocationRelativeTo(this);
 
+    checkoutDialog.add(new JLabel("Original Total: " + String.format("$%.2f", originalTotal)));
+    checkoutDialog.add(new JLabel("Discount: -" + String.format("$%.2f", discountAmount)));
+    checkoutDialog.add(new JLabel("Total After Discount: " + String.format("$%.2f", finalTotal)));
 
-    private void showCart() {
-        if (cartItems.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Your cart is empty.");
-            return;
+    JButton confirmButton = new JButton("Confirm Purchase");
+    confirmButton.addActionListener(e -> {
+        JOptionPane.showMessageDialog(this, "Thank you for your purchase!");
+        cartItems.clear();
+        updateCartButton();
+        checkoutDialog.dispose();
+    });
+
+    checkoutDialog.add(confirmButton);
+    checkoutDialog.setVisible(true);
+}
+
+private void showCart() {
+    if (cartItems.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "Your cart is empty.");
+        return;
+    }
+
+    // 1. إنشاء الـ JDialog للعرض
+    JDialog cartDialog = new JDialog(this, "Cart", true);
+    cartDialog.setSize(700, 500);
+    cartDialog.setLayout(new BorderLayout());
+    cartDialog.setLocationRelativeTo(this);
+
+    // 2. قراءة قيمة DISCOUNTVOUCHER من قاعدة البيانات
+    String discountVoucher = "";
+    double discountRate = 0.0;
+
+    try {
+        Connection conn = DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=Supermarket;integratedSecurity=true;encrypt=true;trustServerCertificate=true");
+        String sql = "SELECT DISCOUNTVOUCHER FROM customer WHERE CID = ?";
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        stmt.setInt(1, customer.getId());
+
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) {
+            discountVoucher = rs.getString("DISCOUNTVOUCHER");
+            System.out.println("Discount voucher from DB: " + discountVoucher); // فقط للتأكد
+            if(discountVoucher != null && discountVoucher.equalsIgnoreCase("ds")){
+                discountRate = 0.2;  // خصم 20%
+            }
         }
 
-        final double[] totalHolder = {0};
-        for (OrderItem item : cartItems) {
-            totalHolder[0] += item.getQuantity() * item.getPrice();
-        }
+        rs.close();
+        stmt.close();
+        conn.close();
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
 
-        JDialog cartDialog = new JDialog(this, "Your Cart", true);
-        cartDialog.setSize(500, 400);
-        cartDialog.setLayout(new BorderLayout());
-        cartDialog.setLocationRelativeTo(this);
+    // 3. إنشاء نموذج الجدول واحتساب الإجماليات
+    final double[] totalHolder = {0};
+    final double[] discountHolder = {0};
 
-        String[] columnNames = {"Product", "Quantity", "Price", "Subtotal"};
-        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+    String[] columnNames = {"Product", "Quantity", "Price", "Subtotal", "Discount", "Total After Discount"};
+    DefaultTableModel model = new DefaultTableModel(columnNames, 0);
 
-        for (OrderItem item : cartItems) {
-            double subtotal = item.getQuantity() * item.getPrice();
-            model.addRow(new Object[]{
-                item.getProductName(),
-                item.getQuantity(),
-                String.format("$%.2f", item.getPrice()),
-                String.format("$%.2f", subtotal)
-            });
-        }
+    for (OrderItem item : cartItems) {
+        double price = item.getPrice();
+        int quantity = item.getQuantity();
+        double subtotal = quantity * price;
+        double itemDiscount = subtotal * discountRate;
+        double totalAfterDiscount = subtotal - itemDiscount;
 
-        JTable cartTable = new JTable(model);
-        cartTable.setFont(new Font("Arial", Font.PLAIN, 14));
-        cartTable.setRowHeight(25);
+        totalHolder[0] += subtotal;
+        discountHolder[0] += itemDiscount;
 
-        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        totalPanel.add(new JLabel("Total: " + String.format("$%.2f", totalHolder[0])));
+        model.addRow(new Object[]{
+            item.getProductName(),
+            quantity,
+            String.format("$%.2f", price),
+            String.format("$%.2f", subtotal),
+            String.format("-$%.2f", itemDiscount),
+            String.format("$%.2f", totalAfterDiscount)
+        });
+    }
 
-        JPanel buttonPanel = new JPanel();
-        JButton checkoutBtn = new JButton("Checkout");
-        checkoutBtn.addActionListener(e -> {
+    JTable cartTable = new JTable(model);
+    cartTable.setFont(new Font("Arial", Font.PLAIN, 14));
+    cartTable.setRowHeight(25);
+
+    // 4. لوحة الإجماليات
+    JPanel totalPanel = new JPanel(new GridLayout(3, 1));
+    totalPanel.add(new JLabel("Original Total: " + String.format("$%.2f", totalHolder[0])));
+    totalPanel.add(new JLabel("Total Discount: -" + String.format("$%.2f", discountHolder[0])));
+    double finalTotal = totalHolder[0] - discountHolder[0];
+    totalPanel.add(new JLabel("Total After Discount: " + String.format("$%.2f", finalTotal)));
+
+    // 5. أزرار الإجراءات
+    JPanel buttonPanel = new JPanel();
+
+    JButton checkoutBtn = new JButton("Checkout");
+    checkoutBtn.addActionListener(e -> {
+        cartDialog.dispose();
+        showCheckoutDialog(finalTotal, totalHolder[0], discountHolder[0]);
+    });
+
+    JButton removeBtn = new JButton("Remove Selected");
+    removeBtn.addActionListener(e -> {
+        int selectedRow = cartTable.getSelectedRow();
+        if (selectedRow >= 0) {
+            cartItems.remove(selectedRow);
+            updateCartButton();
             cartDialog.dispose();
-            showCheckoutDialog(totalHolder[0]);
-        });
-
-        JButton removeBtn = new JButton("Remove Selected");
-        removeBtn.addActionListener(e -> {
-            int selectedRow = cartTable.getSelectedRow();
-            if (selectedRow >= 0) {
-                cartItems.remove(selectedRow);
-                updateCartButton();
-                cartDialog.dispose();
-                if (!cartItems.isEmpty()) {
-                    showCart();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Your cart is now empty.");
-                }
-            }
-        });
-
-        buttonPanel.add(removeBtn);
-        buttonPanel.add(checkoutBtn);
-
-        cartDialog.add(new JScrollPane(cartTable), BorderLayout.CENTER);
-        cartDialog.add(totalPanel, BorderLayout.NORTH);
-        cartDialog.add(buttonPanel, BorderLayout.SOUTH);
-        cartDialog.setVisible(true);
-    }
-
-    private void showCheckoutDialog(double total) {
-        JDialog checkoutDialog = new JDialog(this, "Checkout", true);
-        checkoutDialog.setSize(400, 300);
-        checkoutDialog.setLayout(new GridBagLayout());
-        checkoutDialog.setLocationRelativeTo(this);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        JPanel paymentPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        paymentPanel.add(new JLabel("Payment Method:"));
-        ButtonGroup paymentGroup = new ButtonGroup();
-        JRadioButton cashRadio = new JRadioButton("Cash");
-        JRadioButton cardRadio = new JRadioButton("Credit Card");
-        paymentGroup.add(cashRadio);
-        paymentGroup.add(cardRadio);
-        cashRadio.setSelected(true);
-        paymentPanel.add(cashRadio);
-        paymentPanel.add(cardRadio);
-
-        JTextArea addressArea = new JTextArea(customer.getAddress(), 3, 20);
-        addressArea.setEditable(false);
-        addressArea.setLineWrap(true);
-        addressArea.setWrapStyleWord(true);
-
-        JLabel totalLabel = new JLabel("Total: " + String.format("$%.2f", total));
-        totalLabel.setFont(new Font("Arial", Font.BOLD, 16));
-
-        JButton confirmBtn = new JButton("Confirm Order");
-        confirmBtn.addActionListener(e -> {
-            String paymentMethod = cashRadio.isSelected() ? "Cash" : "Credit Card";
-            placeOrder(paymentMethod, total);
-            checkoutDialog.dispose();
-        });
-
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.addActionListener(e -> checkoutDialog.dispose());
-
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
-        checkoutDialog.add(paymentPanel, gbc);
-
-        gbc.gridy++;
-        checkoutDialog.add(new JLabel("Delivery Address:"), gbc);
-        
-        gbc.gridy++;
-        checkoutDialog.add(new JScrollPane(addressArea), gbc);
-        
-        gbc.gridy++;
-        checkoutDialog.add(totalLabel, gbc);
-        
-        gbc.gridy++;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
-        btnPanel.add(confirmBtn);
-        btnPanel.add(cancelBtn);
-        checkoutDialog.add(btnPanel, gbc);
-
-        checkoutDialog.setVisible(true);
-    }
-
-    private void placeOrder(String paymentMethod, double total) {
-        try {
-            Order order = new Order();
-            order.setCustomerId(customer.getId());
-            order.setPaymentMethod(paymentMethod);
-            order.setStatus("Pending");
-            order.setTotalPrice(total);
-
-            OrderDAO orderDAO = new OrderDAO();
-            int orderId = orderDAO.insertOrder(order);
-            
-            if (orderId > 0) {
-                for (OrderItem item : cartItems) {
-                    item.setOrderId(orderId);
-                    orderDAO.insertOrderItem(item);
-                }
-
-                showReceipt(orderId, paymentMethod, total);
-                cartItems.clear();
-                updateCartButton();
+            if (!cartItems.isEmpty()) {
+                showCart();
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to create order.");
+                JOptionPane.showMessageDialog(this, "Your cart is now empty.");
             }
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Error placing order: " + ex.getMessage());
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select an item to remove.");
         }
-    }
+    });
+
+    buttonPanel.add(removeBtn);
+    buttonPanel.add(checkoutBtn);
+
+    // 6. إضافة المكونات إلى الـ dialog
+    cartDialog.add(new JScrollPane(cartTable), BorderLayout.CENTER);
+    cartDialog.add(totalPanel, BorderLayout.NORTH);
+    cartDialog.add(buttonPanel, BorderLayout.SOUTH);
+
+    // 7. عرض الـ dialog
+    cartDialog.setVisible(true);
+}
+
 
     private void showReceipt(int orderId, String paymentMethod, double total) {
         JDialog receiptDialog = new JDialog(this, "Order Receipt", true);
