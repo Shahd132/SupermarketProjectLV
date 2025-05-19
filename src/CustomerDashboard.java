@@ -303,15 +303,48 @@ private void showCheckoutDialog(double finalTotal, double originalTotal, double 
 
     JButton confirmButton = new JButton("Confirm Purchase");
     confirmButton.addActionListener(e -> {
-        JOptionPane.showMessageDialog(this, "Thank you for your purchase!");
-        cartItems.clear();
-        updateCartButton();
-        checkoutDialog.dispose();
+        // تحديث المخزون لكل منتج في العربة عند تأكيد الشراء
+        boolean stockUpdated = true;
+        for (OrderItem item : cartItems) {
+            boolean updated = updateStock(item.getProductId(), item.getQuantity());
+            if (!updated) {
+                stockUpdated = false;
+                break;
+            }
+        }
+        
+        if (stockUpdated) {
+            JOptionPane.showMessageDialog(this, "Thank you for your purchase!");
+            cartItems.clear();
+            updateCartButton();
+            checkoutDialog.dispose();
+        } else {
+            JOptionPane.showMessageDialog(this, "Failed to complete purchase: insufficient stock for one or more products.");
+        }
     });
 
     checkoutDialog.add(confirmButton);
     checkoutDialog.setVisible(true);
 }
+private boolean updateStock(int productId, int quantityBought) {
+    try (Connection conn = DriverManager.getConnection(
+            "jdbc:sqlserver://localhost:1433;databaseName=Supermarket;integratedSecurity=true;trustServerCertificate=true")) {
+
+        String sql = "UPDATE Stock SET Quantity = Quantity - ? WHERE ProductID = ? AND Quantity >= ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, quantityBought);
+            stmt.setInt(2, productId);
+            stmt.setInt(3, quantityBought);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0; // true لو التحديث تم
+        }
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this, "Error updating stock: " + e.getMessage());
+        return false;
+    }
+}
+
 
 private void showCart() {
     if (cartItems.isEmpty()) {
